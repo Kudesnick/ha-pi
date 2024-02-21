@@ -1,5 +1,7 @@
 # USB console and UART console
 
+see: https://gist.github.com/gbaman/50b6cca61dd1c3f88f41
+
 Add `dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial` to `cmdline.txt`
 
 Add to `config.txt`:
@@ -75,5 +77,33 @@ gdbus introspect --system --dest io.hass.os --object-path /io/hass/os
 # wget https://github.com/home-assistant/supervised-installer/releases/latest/download/homeassistant-supervised.deb
 # systemctl disable ModemManager
 # systemctl stop ModemManager
-# dpkg -i --ignore-depends=systemd-resolved ./homeassistant-supervised.deb
+# dpkg -i ./homeassistant-supervised.deb
 ~~~
+
+### Fix raspbian bug
+
+#### wlan0 error
+
+see: https://raspberrypi.stackexchange.com/questions/58809/rpi-loses-its-wlan0-configuration-when-any-docker-container-is-started
+see: https://raspberrypi.stackexchange.com/a/117381
+
+If `dpkg -i ./homeassistant-supervised.deb` fixates on the message
+
+~~~
+[info] Reload systemd
+[info] Restarting NetworkManager
+[info] Enable systemd-resolved
+[info] Restarting systemd-resolved
+[info] Start nfs-utils.service
+[info] Restarting docker service
+ping: checkonline.home-assistant.io: Temporary failure in name resolution
+[info] Waiting for checkonline.home-assistant.io - network interface might be down...
+~~~
+
+Then install `tmux` and open two tabs. In first tab call `sudo dpkg -i ./homeassistant-supervised.deb`. When you see error of network connect, call `sudo systemctl restart dhcpcd` from second tab.
+
+#### cgroup_hierarchy error
+
+see: https://github.com/home-assistant/supervised-installer/issues/253
+
+add `apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false` to `cmdline.txt`
