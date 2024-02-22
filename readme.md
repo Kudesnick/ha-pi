@@ -107,3 +107,24 @@ Then install `tmux` and open two tabs. In first tab call `sudo dpkg -i ./homeass
 see: https://github.com/home-assistant/supervised-installer/issues/253
 
 add `apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false` to `cmdline.txt`
+
+#### Network manager not installed
+
+If you see this error in web interface of Home Assistent, then login to Raspberry console and run
+
+~~~
+# raspi-config
+~~~
+
+Select `Avanced Options` -> `Network Config` -> `NetworkManager`. Save setting and restart system:
+
+~~~
+# shutdown -r now
+~~~
+
+After set Wi-Fi login and password and restart system:
+
+~~~
+# nmcli device wifi connect NETWORK_NAME password WIRELESS_KEY
+# shutdown -r now
+~~~
