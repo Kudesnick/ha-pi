@@ -1,4 +1,6 @@
-# USB console and UART console
+# Previous settings of Raspbian image
+
+## USB console and UART console
 
 see: https://gist.github.com/gbaman/50b6cca61dd1c3f88f41
 
@@ -13,18 +15,31 @@ enable_uart=1
 dtoverlay=dwc2
 ~~~
 
-Type in console input (or add to `firstrun.sh`):
+Add to `firstrun.sh` (before exit command):
 
 ~~~
- # systemctl enable getty@ttyGS0.service
- # shutdown -r now
+systemctl enable getty@ttyGS0.service
 ~~~
 
-Wi-Fi set:
+## Extend swap file
+
+Add to `firstrun.sh` (before exit command):
 
 ~~~
-# iwconfig wlan0 essid NETWORK_NAME key WIRELESS_KEY
+sed -i "s/CONF_SWAPSIZE.*$/CONF_SWAPSIZE=1024/" "/etc/dphys-swapfile"
 ~~~
+
+## Wi-Fi set
+
+~~~
+# iwconfig wlan0 essid NETWORK_NAME key s:WIRELESS_KEY
+~~~
+
+## Fix cgroup_hierarchy error
+
+see: https://github.com/home-assistant/supervised-installer/issues/253
+
+add `apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false` to `cmdline.txt`
 
 # Install Home Assistant
 
@@ -80,9 +95,9 @@ gdbus introspect --system --dest io.hass.os --object-path /io/hass/os
 # dpkg -i ./homeassistant-supervised.deb
 ~~~
 
-### Fix raspbian bug
+# Fix raspbian bug
 
-#### wlan0 error
+## wlan0 error
 
 see: https://raspberrypi.stackexchange.com/questions/58809/rpi-loses-its-wlan0-configuration-when-any-docker-container-is-started
 see: https://raspberrypi.stackexchange.com/a/117381
@@ -101,9 +116,3 @@ ping: checkonline.home-assistant.io: Temporary failure in name resolution
 ~~~
 
 Then install `tmux` and open two tabs. In first tab call `sudo dpkg -i ./homeassistant-supervised.deb`. When you see error of network connect, call `sudo systemctl restart dhcpcd` from second tab.
-
-#### cgroup_hierarchy error
-
-see: https://github.com/home-assistant/supervised-installer/issues/253
-
-add `apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false` to `cmdline.txt`
