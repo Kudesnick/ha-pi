@@ -115,3 +115,12 @@ insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 7. Type `sudo dpkg -i /homeassistant-supervised.deb`;
 8. Select machine type `Raspberrypi2`;
 9. Wait for install complete.
+
+# Links used
+
+- https://forums.raspberrypi.com/viewtopic.php?t=228236
+- https://digitallez.blogspot.com/2018/07/raspberry-3.html
+- https://afullagar.wordpress.com/2017/09/17/raspberry-pi-3-change-from-dhcpcd-to-networkmanager-configuration/
+- https://ivan.bessarabov.ru/blog/how-to-install-home-assistant-on-raspbian-on-raspberry-pi-4
+- https://dzen.ru/a/ZYIM3UgUSzG68jmd
+- https://www.tim-kleyersburg.de/articles/home-assistant-with-docker-2023/
