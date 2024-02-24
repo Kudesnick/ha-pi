@@ -1,140 +1,117 @@
 # Previous settings of Raspbian image
 
-## USB console and UART console
+1. Download [raspberry pi imager](https://downloads.raspberrypi.org/imager/imager_latest.exe)
+2. Select device `Raspberry pi zero 2 w`
+3. Select OS `Raspberry Pi OS (other)` -> Raspberry Pi OS (Legacy, 64 bit) Lite
+4. Select mass storage device
+5. Set custom settings: login and password of first user
+6. Write image
 
-see: https://gist.github.com/gbaman/50b6cca61dd1c3f88f41
+# Edit image
 
-Add `dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial` to `cmdline.txt`
+## Edit `cmdline.txt`
 
-Add to `config.txt`:
+add
 
 ~~~
-# otg_mode=1 # disable otg mode
+dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial
+~~~
 
+then enable USB and serial console. Add
+
+~~~
+apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false
+~~~
+
+then fix cgroup hierarchy error see (https://github.com/home-assistant/supervised-installer/issues/253). Еhe file should look like as
+
+~~~
+apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial root=PARTUUID=8bae82fd-02 rootfstype=ext4 fsck.repair=yes rootwait quiet init=/usr/lib/raspberrypi-sys-mods/firstboot systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target
+~~~
+
+strictly in one line!
+
+## Edit `config.txt`
+
+Comments `otg_mode=1` (replace to `# otg_mode=1`) and append
+
+~~~
 enable_uart=1
 dtoverlay=dwc2
 ~~~
 
-Add to `firstrun.sh` (before exit command):
+## Edit `firstrun.sh`
+
+Add this code before string `rm -f /boot/firstrun.sh`:
 
 ~~~
+FIRST_USER_NAME=username
+NETWORK_NAME=wifi_name
+WIRELESS_KEY=wifi_password
+
+# Enable USB console
+# see https://forums.raspberrypi.com/viewtopic.php?t=228236
 systemctl enable getty@ttyGS0.service
-~~~
 
-## Extend swap file
-
-Add to `firstrun.sh` (before exit command):
-
-~~~
+# Swap up to 1G
 sed -i "s/CONF_SWAPSIZE.*$/CONF_SWAPSIZE=1024/" "/etc/dphys-swapfile"
+
+# Enable BT
+systemctl enable bluetooth.service
+usermod -G bluetooth -a ${FIRST_USER_NAME}
+# Type for scaning
+# bluetoothctl
+# agent on
+# default-agent
+# scan on
+
+# Switch dhtcpd to NetworkManager
+# see https://wiki.gentoo.org/wiki/NetworkManager
+systemctl start NetworkManager.service
+systemctl enable NetworkManager
+systemctl enable NetworkManager-wait-online.service
+nmcli device wifi connect ${NETWORK_NAME} password ${WIRELESS_KEY}
+
+# Update system
+apt update && apt upgrade -y
+
+# docker install
+curl -sSL https://get.docker.com | sh
+usermod -aG docker ${FIRST_USER_NAME}
+usermod -aG docker root
+# Try command:
+# docker ps -a
+# Must be return:
+# CONTAINER ID   IMAGE   COMMAND  CREATED   STATUS   PORTS   NAMES
+
+# Home Assistant Install
+#see https://github.com/home-assistant/supervised-installer
+
+# prepare
+apt install apparmor cifs-utils curl dbus jq libglib2.0-bin lsb-release network-manager nfs-common systemd-journal-remote udisks2 wget -y
+# Install OS-Agent
+wget https://github.com/home-assistant/os-agent/releases/download/1.6.0/os-agent_1.6.0_linux_aarch64.deb
+dpkg -i os-agent_1.6.0_linux_aarch64.deb
+# Try command:
+# gdbus introspect --system --dest io.hass.os --object-path /io/hass/os
+# Install Home Assistant
+wget https://github.com/home-assistant/supervised-installer/releases/latest/download/homeassistant-supervised.deb
+systemctl disable ModemManager
+systemctl stop ModemManager
+# Type after login:
+# dpkg -i /homeassistant-supervised.deb
 ~~~
 
-## Wi-Fi set
-
-~~~
-# iwconfig wlan0 essid NETWORK_NAME key s:WIRELESS_KEY
-~~~
-
-## Fix cgroup_hierarchy error
-
-see: https://github.com/home-assistant/supervised-installer/issues/253
-
-add `apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false` to `cmdline.txt`
+insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 
 # Install Home Assistant
 
-see: https://ivan.bessarabov.ru/blog/how-to-install-home-assistant-on-raspbian-on-raspberry-pi-4
-
-## Docker install:
-
-~~~
-# apt update && apt upgrade -y
-# curl -sSL https://get.docker.com | sh
-# usermod -aG docker <pi user name>
-# usermod -aG docker root
-# shutdown -r now
-~~~
-
-Verify:
-
-~~~
-# docker ps -a
-~~~
-
-Must be result:
-
-~~~
-CONTAINER ID   IMAGE   COMMAND  CREATED   STATUS   PORTS   NAMES
-~~~
-
-## Install Home Assistant
-
-~~~
-# apt install apparmor cifs-utils curl dbus jq libglib2.0-bin lsb-release network-manager nfs-common systemd-journal-remote udisks2 wget -y
-~~~
-
-### Install OS-Agent
-
-~~~
-# wget https://github.com/home-assistant/os-agent/releases/download/1.6.0/os-agent_1.6.0_linux_aarch64.deb
-# dpkg -i os-agent_1.6.0_linux_aarch64.deb
-~~~
-
-Verify:
-
-~~~
-gdbus introspect --system --dest io.hass.os --object-path /io/hass/os
-~~~
-
-### Install Home Assistant
-
-~~~
-# wget https://github.com/home-assistant/supervised-installer/releases/latest/download/homeassistant-supervised.deb
-# systemctl disable ModemManager
-# systemctl stop ModemManager
-# dpkg -i ./homeassistant-supervised.deb
-~~~
-
-# Fix raspbian bug
-
-## wlan0 error
-
-see: https://raspberrypi.stackexchange.com/questions/58809/rpi-loses-its-wlan0-configuration-when-any-docker-container-is-started
-see: https://raspberrypi.stackexchange.com/a/117381
-
-If `dpkg -i ./homeassistant-supervised.deb` fixates on the message
-
-~~~
-[info] Reload systemd
-[info] Restarting NetworkManager
-[info] Enable systemd-resolved
-[info] Restarting systemd-resolved
-[info] Start nfs-utils.service
-[info] Restarting docker service
-ping: checkonline.home-assistant.io: Temporary failure in name resolution
-[info] Waiting for checkonline.home-assistant.io - network interface might be down...
-~~~
-
-Then install `tmux` and open two tabs. In first tab call `sudo dpkg -i ./homeassistant-supervised.deb`. When you see error of network connect, call `sudo systemctl restart dhcpcd` from second tab.
-
-#### Network manager not installed
-
-If you see this error in web interface of Home Assistent, then login to Raspberry console and run
-
-~~~
-# raspi-config
-~~~
-
-Select `Avanced Options` -> `Network Config` -> `NetworkManager`. Save setting and restart system:
-
-~~~
-# shutdown -r now
-~~~
-
-After set Wi-Fi login and password and restart system:
-
-~~~
-# nmcli device wifi connect NETWORK_NAME password WIRELESS_KEY
-# shutdown -r now
-~~~
-
+1. Insert SD-Card with Raspberry Pi OS image to device;
+2. Connect device to PC;
+3. Wait to install OS, Docker, OS-Agent and other;
+4. At the end of the installation a virtual COM port should appear in the system;
+5. Open this virtual COM port as console terminal;
+6. Log in to system;
+7. Type `sudo dpkg -i /homeassistant-supervised.deb`;
+8. Select machine type `Raspberrypi2`;
+9. Wait for install complete.
