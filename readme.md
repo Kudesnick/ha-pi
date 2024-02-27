@@ -102,25 +102,37 @@ systemctl disable ModemManager
 systemctl stop ModemManager
 # Type after reload:
 # MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
+
+# Install smth packages
+apt install mc -y
 ~~~
 
 insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 
 ## Install Home Assistant
 
-1. Insert SD-Card with Raspberry Pi OS image to device;
-2. Connect device to PC;
-3. Wait to install OS, Docker, OS-Agent and other;
-4. At the end of the installation a virtual COM port should appear in the system;
-5. Open this virtual COM port as console terminal;
-6. Log in to system;
-7. Type:
+1. Write `Raspberry Pi OS (Legacy, 64 bit) Lite` image to SD-Card (few 4 min on 64 GB SD-Card);
+2. Edit `cmdline.txt`, `config.txt` and `firstrun.sh`;
+3. Insert SD-Card with Raspberry Pi OS image to device;
+4. Connect device to PC;
+5. Wait to install OS, Docker, OS-Agent and other (few 8 minutes);
+6. At the end of the installation a virtual COM port should appear in the system;
+7. Open this virtual COM port as console terminal;
+8. Log in to system;
+9. Type:
 
 ~~~
-# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb`
+# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
 ~~~
 
-8. Wait for install complete.
+10. Wait for install complete and all docker containers to start (few 20 min);
+11. Reconfigure Wi-Fi:
+
+~~~
+# nmcli device wifi connect ${NETWORK_NAME} password ${WIRELESS_KEY}
+~~~
+
+12. Open in browser `http://<Raspberry local IP>:8123/`.
 
 ## Bluetooth tracker patch
 
@@ -129,15 +141,20 @@ The Bluetooth tracker component has a dependency on the outdated PyBluez v 0.22 
 Use the following code to fix and run the component:
 
 ~~~
-$ cat <<EOT >> /usr/share/hassio/homeassistant/configuration.yaml
-
-device_tracker:
-  - platform: bluetooth_tracker
-EOT
+# sed -i '$a\
+\
+device_tracker:\
+  - platform: bluetooth_tracker' /usr/share/hassio/homeassistant/configuration.yaml
 $ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/device_tracker.py
 $ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/manifest.json
 # docker cp device_tracker.py homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
 # docker cp manifest.json homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
+~~~
+
+Restart system:
+
+~~~
+# shutdown -r now
 ~~~
 
 After this, detected Bluetooth devices will begin to appear in the file `/usr/share/hassio/homeassistant/known_devices.yaml`
