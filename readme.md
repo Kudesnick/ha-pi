@@ -1,4 +1,6 @@
-# Previous settings of Raspbian image
+# Install Home Assistant to Raspberry Pi zero 2W
+
+## Previous settings of Raspbian image
 
 1. Download [raspberry pi imager](https://downloads.raspberrypi.org/imager/imager_latest.exe)
 2. Select device `Raspberry pi zero 2 w`
@@ -7,9 +9,9 @@
 5. Set custom settings: login and password of first user
 6. Write image
 
-# Edit image
+## Edit image
 
-## Edit `cmdline.txt`
+### Edit `cmdline.txt`
 
 add
 
@@ -31,7 +33,7 @@ apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false dwc_otg.lpm_
 
 strictly in one line!
 
-## Edit `config.txt`
+### Edit `config.txt`
 
 Comments `otg_mode=1` (replace to `# otg_mode=1`) and append
 
@@ -40,7 +42,7 @@ enable_uart=1
 dtoverlay=dwc2
 ~~~
 
-## Edit `firstrun.sh`
+### Edit `firstrun.sh`
 
 Add this code before string `rm -f /boot/firstrun.sh`:
 
@@ -98,13 +100,13 @@ dpkg -i os-agent_1.6.0_linux_aarch64.deb
 wget https://github.com/home-assistant/supervised-installer/releases/latest/download/homeassistant-supervised.deb
 systemctl disable ModemManager
 systemctl stop ModemManager
-# Type after login:
-# dpkg -i /homeassistant-supervised.deb
+# Type after reload:
+# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
 ~~~
 
 insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 
-# Install Home Assistant
+## Install Home Assistant
 
 1. Insert SD-Card with Raspberry Pi OS image to device;
 2. Connect device to PC;
@@ -112,11 +114,35 @@ insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 4. At the end of the installation a virtual COM port should appear in the system;
 5. Open this virtual COM port as console terminal;
 6. Log in to system;
-7. Type `sudo dpkg -i /homeassistant-supervised.deb`;
-8. Select machine type `Raspberrypi2`;
-9. Wait for install complete.
+7. Type:
 
-# Links used
+~~~
+# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb`
+~~~
+
+8. Wait for install complete.
+
+## Bluetooth tracker patch
+
+The Bluetooth tracker component has a dependency on the outdated PyBluez v 0.22 library. Therefore, when you try to start it according to the [instructions](https://www.home-assistant.io/integrations/bluetooth_tracker/), an [error](https://github.com/home-assistant/core/issues/94273) will be recorded in the log. To fix it, you need to [patch the component files using](https://github.com/home-assistant/core/pull/108513).
+
+Use the following code to fix and run the component:
+
+~~~
+$ cat <<EOT >> /usr/share/hassio/homeassistant/configuration.yaml
+
+device_tracker:
+  - platform: bluetooth_tracker
+EOT
+$ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/device_tracker.py
+$ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/manifest.json
+# docker cp device_tracker.py homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
+# docker cp manifest.json homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
+~~~
+
+After this, detected Bluetooth devices will begin to appear in the file `/usr/share/hassio/homeassistant/known_devices.yaml`
+
+## Links used
 
 - https://forums.raspberrypi.com/viewtopic.php?t=228236
 - https://digitallez.blogspot.com/2018/07/raspberry-3.html
@@ -124,3 +150,9 @@ insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 - https://ivan.bessarabov.ru/blog/how-to-install-home-assistant-on-raspbian-on-raspberry-pi-4
 - https://dzen.ru/a/ZYIM3UgUSzG68jmd
 - https://www.tim-kleyersburg.de/articles/home-assistant-with-docker-2023/
+
+### BT tracker patching
+
+- https://www.home-assistant.io/integrations/bluetooth_tracker/
+- https://github.com/home-assistant/core/issues/94273
+- https://github.com/home-assistant/core/pull/108513
