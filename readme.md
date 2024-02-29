@@ -138,17 +138,27 @@ insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
 
 The Bluetooth tracker component has a dependency on the outdated PyBluez v 0.22 library. Therefore, when you try to start it according to the [instructions](https://www.home-assistant.io/integrations/bluetooth_tracker/), an [error](https://github.com/home-assistant/core/issues/94273) will be recorded in the log. To fix it, you need to [patch the component files using](https://github.com/home-assistant/core/pull/108513).
 
-Use the following code to fix and run the component:
+override bluetooth_tracker as a custom component from the [forked repository](https://github.com/xz-dev/core/tree/fix/bluetooth_tracker):
 
 ~~~
-# sed -i '$a\
-\
-device_tracker:\
-  - platform: bluetooth_tracker' /usr/share/hassio/homeassistant/configuration.yaml
-$ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/device_tracker.py
-$ wget https://raw.githubusercontent.com/xz-dev/core/fix/bluetooth_tracker/homeassistant/components/bluetooth_tracker/manifest.json
-# docker cp device_tracker.py homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
-# docker cp manifest.json homeassistant:/usr/src/homeassistant/homeassistant/components/bluetooth_tracker/
+$ git clone --branch fix/bluetooth_tracker --depth 1 git@github.com:xz-dev/core.git
+# mkdir /usr/share/hassio/homeassistant/custom_components/
+# cp -r ./core/homeassistant/components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/
+$ rm -fr ./core/
+~~~
+
+~~~
+# tee -a /usr/share/hassio/homeassistant/configuration.yaml << END
+
+device_tracker:
+  - platform: bluetooth_tracker
+    request_rssi: true
+  - platform: bluetooth_le_tracker
+    track_new_devices: true
+    track_battery: true
+    track_battery_interval: 3600
+    interval_seconds: 13
+END
 ~~~
 
 Restart system:
@@ -173,3 +183,4 @@ After this, detected Bluetooth devices will begin to appear in the file `/usr/sh
 - https://www.home-assistant.io/integrations/bluetooth_tracker/
 - https://github.com/home-assistant/core/issues/94273
 - https://github.com/home-assistant/core/pull/108513
+- https://github.com/xz-dev/core/tree/fix/bluetooth_tracker
