@@ -169,6 +169,14 @@ Restart system:
 
 After this, detected Bluetooth devices will begin to appear in the file `/usr/share/hassio/homeassistant/known_devices.yaml`
 
+## Miscellaneous notes
+
+### [Copy file from SSH](https://unix.stackexchange.com/questions/106480/how-to-copy-files-from-one-machine-to-another-using-ssh)
+
+~~~
+scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST}
+~~~
+
 ## Links used
 
 - https://forums.raspberrypi.com/viewtopic.php?t=228236
