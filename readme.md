@@ -141,7 +141,7 @@ The Bluetooth tracker component has a dependency on the outdated PyBluez v 0.22 
 override bluetooth_tracker as a custom component from the [forked repository](https://github.com/xz-dev/core/tree/fix/bluetooth_tracker):
 
 ~~~
-$ git clone --branch fix/bluetooth_tracker --depth 1 git@github.com:xz-dev/core.git
+$ git clone --branch fix/bluetooth_tracker --depth 1 https://github.com/xz-dev/core.git
 # mkdir /usr/share/hassio/homeassistant/custom_components/
 # cp -r ./core/homeassistant/components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/
 $ rm -fr ./core/
@@ -149,7 +149,6 @@ $ rm -fr ./core/
 
 ~~~
 # tee -a /usr/share/hassio/homeassistant/configuration.yaml << END
-
 device_tracker:
   - platform: bluetooth_tracker
     request_rssi: true
