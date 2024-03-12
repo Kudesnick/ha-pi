@@ -1,50 +1,60 @@
-# Install Home Assistant to Raspberry Pi zero 2W
+# Установка Home Assistant на Raspberry Pi zero 2W как hass сервис
 
-## Previous settings of Raspbian image
+Цель - поставить Home Assistant поверх Raspbian, сохранив доступ к хост-системе. Это позволит управлять устройством на низком уровне, устанавливать дополнительные приложения и использовать ссистему не только как сервер Home Assistant но и в других целях. Как torrent-сервер, например. Все операции проводятся на Raspberry Pi zero 2W. Это самая компактная система семейства Raspbery Pi, которая потянет Home Assistant. На борту имеется Wi-Fi и BT/BLE, что позволяет сопрячь устройство как с локальной сетью, так и с BT/BLE устройствами без дополнительных аппаратных модулей. В последствии останется добавить только пару компонентов для поддержки ИК устройств и модуль для работы с ZigBee.
 
-1. Download [raspberry pi imager](https://downloads.raspberrypi.org/imager/imager_latest.exe)
-2. Select device `Raspberry pi zero 2 w`
-3. Select OS `Raspberry Pi OS (other)` -> Raspberry Pi OS (Legacy, 64 bit) Lite
-4. Select mass storage device
-5. Set custom settings: login and password of first user
-6. Write image
+## Предварительные настройки образа Raspbian
 
-## Edit image
+1. Скачайте [raspberry pi imager](https://downloads.raspberrypi.org/imager/imager_latest.exe);
+2. Выберите девайс `Raspberry pi zero 2 w`;
+3. Выберите ОС `Raspberry Pi OS (other)` -> Raspberry Pi OS (Legacy, 64 bit) Lite;
+4. Выберите SD-карту, на которую будете писать образ;
+5. Установите дополнительные настройки: логин и пароль для основного пользователя. Для связи по SSH можно сразу добавить/сгенерировать ключ;
+6. Запишите образ.
 
-### Edit `cmdline.txt`
+## Правка образа
 
-add
+После записи образа откройте раздел на SD-карточке, отформатированный в Fat-32.
+
+### Редактирование `cmdline.txt`
+
+Добавьте следующий фрагмент в начало файла:
 
 ~~~
 dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial
 ~~~
 
-then enable USB and serial console. Add
+Это позволит подключаться к консоли через виртуальный COM-порт, по USB-кабелю. Это - способ взаимодействия с устройством, если не настроен доступ SSH, нет сети и т.д. 
+
+Также добавьте в начало этого файла:
 
 ~~~
 apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false
 ~~~
 
-then fix cgroup hierarchy error see (https://github.com/home-assistant/supervised-installer/issues/253). Еhe file should look like as
+для исправления предупреждения установщика. См. (https://github.com/home-assistant/supervised-installer/issues/253).
+
+После всех манипуляций файл должен выглядеть примерно так:
 
 ~~~
 apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_serial root=PARTUUID=8bae82fd-02 rootfstype=ext4 fsck.repair=yes rootwait quiet init=/usr/lib/raspberrypi-sys-mods/firstboot systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target
 ~~~
 
-strictly in one line!
+Строго одна строка, без переносов!
 
-### Edit `config.txt`
+### Редактирование `config.txt`
 
-Comments `otg_mode=1` (replace to `# otg_mode=1`) and append
+Закомментируйте `otg_mode=1` (замените `# otg_mode=1`) и добавьте строки:
 
 ~~~
 enable_uart=1
 dtoverlay=dwc2
 ~~~
 
-### Edit `firstrun.sh`
+Это позволит подключаться к консоли по USB или по UART, используя TTL переходник.
 
-Add this code before string `rm -f /boot/firstrun.sh`:
+### Редактирование `firstrun.sh`
+
+Добавьте следующий сценарий перед строкой `rm -f /boot/firstrun.sh`:
 
 ~~~
 FIRST_USER_NAME=username
@@ -107,38 +117,41 @@ systemctl stop ModemManager
 apt install mc -y
 ~~~
 
-insert valid `FIRST_USER_NAME`, `NETWORK_NAME`, `WIRELESS_KEY`.
+Данный скрипт произведет преднастройку системы (увеличит файл подкачки, включит BT и пр.) и скачает пакеты, необходимые для установки Home Assistant.
+Укажите валидные `FIRST_USER_NAME` (имя пользователя, которое указано при настройке образа Raspbian), `NETWORK_NAME` и `WIRELESS_KEY` - логин и пароль Wi-Fi сети.
 
-## Install Home Assistant
+## Установка Home Assistant
 
-1. Write `Raspberry Pi OS (Legacy, 64 bit) Lite` image to SD-Card (few 4 min on 64 GB SD-Card);
-2. Edit `cmdline.txt`, `config.txt` and `firstrun.sh`;
-3. Insert SD-Card with Raspberry Pi OS image to device;
-4. Connect device to PC;
-5. Wait to install OS, Docker, OS-Agent and other (few 8 minutes);
-6. At the end of the installation a virtual COM port should appear in the system;
-7. Open this virtual COM port as console terminal;
-8. Log in to system;
-9. Type:
+1. Запишите образ `Raspberry Pi OS (Legacy, 64 bit) Lite` на SD-карту (около 4 минут на 64 GB SD-карту);
+2. Отредактируйте `cmdline.txt`, `config.txt` и `firstrun.sh` согласно инструкции выше;
+3. Вставьте подготовленную SD-карту в устройство;
+4. Подключите устройство к ПК;
+5. Подождите, пока установится ОС, Docker, OS-Agent и прочее (примерно 8 минут);
+6. После всех установок, устройство перезагрузится и в ПК появится новый виртуальный COM-порт;
+7. Откройте это виртуальный COM-порт в терминале (например [PuTTY](https://www.putty.org/));
+8. Войдите в систему под вашим логином и паролем;
+9. Наберите для установки Home Assistant:
 
 ~~~
 # MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
 ~~~
 
-10. Wait for install complete and all docker containers to start (few 20 min);
-11. Reconfigure Wi-Fi:
+10. Подождите, пока система установится и все Docker-контейнеры будут запущены (примерно 20 минут);
+11. Переконфигурируйте Wi-Fi. Это нужно, потому что при конфигурации через скрипт `firstrun.sh` что-то работает не совсем корректно и Home Assistant не может подключиться к сети:
 
 ~~~
 # nmcli device wifi connect ${NETWORK_NAME} password ${WIRELESS_KEY}
 ~~~
 
-12. Open in browser `http://<Raspberry local IP>:8123/`.
+12. Откройте в браузере панель настроек Home Assistant `http://<Raspberry local IP>:8123/`.
 
-## Bluetooth tracker patch
+Готово!
 
-The Bluetooth tracker component has a dependency on the outdated PyBluez v 0.22 library. Therefore, when you try to start it according to the [instructions](https://www.home-assistant.io/integrations/bluetooth_tracker/), an [error](https://github.com/home-assistant/core/issues/94273) will be recorded in the log. To fix it, you need to [patch the component files using](https://github.com/home-assistant/core/pull/108513).
+## Исправление компонента bluetooth_tracker
 
-override bluetooth_tracker as a custom component from the [forked repository](https://github.com/xz-dev/core/tree/fix/bluetooth_tracker):
+Компонент `Bluetooth tracker` использует устаревшую библиотеку PyBluez v 0.22. Из-за этого бага, если следовать [инструкции](https://www.home-assistant.io/integrations/bluetooth_tracker/), получаем в логе [ошибку](https://github.com/home-assistant/core/issues/94273). [Обсуждение бага ведется здесь](https://github.com/home-assistant/core/pull/108513).
+
+Перегрузим bluetooth_tracker из [форка репозитория ядра](https://github.com/xz-dev/core/tree/fix/bluetooth_tracker), в котором компонент переписан под актуальные библиотеки:
 
 ~~~
 $ git clone --branch fix/bluetooth_tracker --depth 1 https://github.com/xz-dev/core.git
@@ -146,6 +159,8 @@ $ git clone --branch fix/bluetooth_tracker --depth 1 https://github.com/xz-dev/c
 # cp -r ./core/homeassistant/components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/
 $ rm -fr ./core/
 ~~~
+
+Включим обнаружение BT/BLE устройств, добавив натройки в конфиг:
 
 ~~~
 # tee -a /usr/share/hassio/homeassistant/configuration.yaml << END
@@ -160,23 +175,25 @@ device_tracker:
 END
 ~~~
 
-Restart system:
+Перезагрузите систему:
 
 ~~~
 # shutdown -r now
 ~~~
 
-After this, detected Bluetooth devices will begin to appear in the file `/usr/share/hassio/homeassistant/known_devices.yaml`
+После этого, обнаруживаемые BT/BLE девайсы будут фиксироваться в файле `/usr/share/hassio/homeassistant/known_devices.yaml`
 
-## Miscellaneous notes
+## Разные заметки
 
-### [Copy file from SSH](https://unix.stackexchange.com/questions/106480/how-to-copy-files-from-one-machine-to-another-using-ssh)
+### [Копирование файла по SSH](https://unix.stackexchange.com/questions/106480/how-to-copy-files-from-one-machine-to-another-using-ssh)
+
+Пример:
 
 ~~~
 scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST}
 ~~~
 
-## Links used
+## Используемые ссылки
 
 - https://forums.raspberrypi.com/viewtopic.php?t=228236
 - https://digitallez.blogspot.com/2018/07/raspberry-3.html
@@ -185,7 +202,7 @@ scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST
 - https://dzen.ru/a/ZYIM3UgUSzG68jmd
 - https://www.tim-kleyersburg.de/articles/home-assistant-with-docker-2023/
 
-### BT tracker patching
+### Ссылки, используемые для исправления компонента `bluetooth_tracker`
 
 - https://www.home-assistant.io/integrations/bluetooth_tracker/
 - https://github.com/home-assistant/core/issues/94273
