@@ -1,11 +1,11 @@
-# Установка Home Assistant на Raspberry Pi zero 2W как hass сервис
+# Установка Home Assistant на `Raspberry Pi Zero 2 W` как hass сервис
 
 Цель - поставить Home Assistant поверх Raspbian, сохранив доступ к хост-системе. Это позволит управлять устройством на низком уровне, устанавливать дополнительные приложения и использовать ссистему не только как сервер Home Assistant но и в других целях. Как torrent-сервер, например. Все операции проводятся на Raspberry Pi zero 2W. Это самая компактная система семейства Raspbery Pi, которая потянет Home Assistant. На борту имеется Wi-Fi и BT/BLE, что позволяет сопрячь устройство как с локальной сетью, так и с BT/BLE устройствами без дополнительных аппаратных модулей. В последствии останется добавить только пару компонентов для поддержки ИК устройств и модуль для работы с ZigBee.
 
 ## Предварительные настройки образа Raspbian
 
 1. Скачайте [raspberry pi imager](https://downloads.raspberrypi.org/imager/imager_latest.exe);
-2. Выберите девайс `Raspberry pi zero 2 w`;
+2. Выберите девайс Raspberry Pi Zero 2 W;
 3. Выберите ОС `Raspberry Pi OS (other)` -> Raspberry Pi OS (Legacy, 64 bit) Lite;
 4. Выберите SD-карту, на которую будете писать образ;
 5. Установите дополнительные настройки: логин и пароль для основного пользователя. Для связи по SSH можно сразу добавить/сгенерировать ключ;
@@ -13,7 +13,7 @@
 
 ## Правка образа
 
-После записи образа откройте раздел на SD-карточке, отформатированный в Fat-32.
+После записи образа откройте раздел на SD-карточке, отформатированный в FAT32.
 
 ### Редактирование `cmdline.txt`
 
@@ -31,7 +31,13 @@ dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 modules-load=dwc2,g_ser
 apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=false
 ~~~
 
-для исправления предупреждения установщика. См. (https://github.com/home-assistant/supervised-installer/issues/253).
+для исправления предупреждения установщика:
+
+~~~
+[warn] Could not find /etc/default/grub or /boot/firmware/cmdline.txt failed to switch to cgroup v1
+~~~
+
+См. (https://github.com/home-assistant/supervised-installer/issues/253). Предупреждение всё равно будет появляться, но это некритично.
 
 После всех манипуляций файл должен выглядеть примерно так:
 
@@ -130,22 +136,21 @@ apt install mc -y
 6. После всех установок, устройство перезагрузится и в ПК появится новый виртуальный COM-порт;
 7. Откройте это виртуальный COM-порт в терминале (например [PuTTY](https://www.putty.org/));
 8. Войдите в систему под вашим логином и паролем;
-9. Наберите для установки Home Assistant:
-
-~~~
-# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
-~~~
-
-10. Подождите, пока система установится и все Docker-контейнеры будут запущены (примерно 20 минут);
-11. Переконфигурируйте Wi-Fi. Это нужно, потому что при конфигурации через скрипт `firstrun.sh` что-то работает не совсем корректно и Home Assistant не может подключиться к сети:
+9. Переконфигурируйте Wi-Fi. Это нужно, потому что при конфигурации через скрипт `firstrun.sh` что-то работает не совсем корректно и Home Assistant не может подключиться к сети:
 
 ~~~
 # nmcli device wifi connect ${NETWORK_NAME} password ${WIRELESS_KEY}
 ~~~
 
-12. Откройте в браузере панель настроек Home Assistant `http://<Raspberry local IP>:8123/`.
+10. Наберите для установки Home Assistant:
 
-Готово!
+~~~
+# MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
+~~~
+
+11. Подождите, пока система установится и все Docker-контейнеры будут запущены (примерно 20 минут);
+12. Откройте в браузере панель настроек Home Assistant `http://<Raspberry local IP>:8123/`;
+13. Готово!
 
 ## Исправление компонента bluetooth_tracker
 
@@ -157,6 +162,9 @@ apt install mc -y
 $ git clone --branch fix/bluetooth_tracker --depth 1 https://github.com/xz-dev/core.git
 # mkdir /usr/share/hassio/homeassistant/custom_components/
 # cp -r ./core/homeassistant/components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/
+# chmod -R 755 /usr/share/hassio/homeassistant/custom_components/
+# sed -i 's/"name".*/&\n  "version": "1.0.0",/' /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/manifest.json
+# sed -i 's/"codeowners".*/&\n  "dependencies": ["bluetooth_adapters"],/' /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/manifest.json
 $ rm -fr ./core/
 ~~~
 
@@ -166,6 +174,7 @@ $ rm -fr ./core/
 # tee -a /usr/share/hassio/homeassistant/configuration.yaml << END
 device_tracker:
   - platform: bluetooth_tracker
+    track_new_devices: true
     request_rssi: true
   - platform: bluetooth_le_tracker
     track_new_devices: true
@@ -178,10 +187,72 @@ END
 Перезагрузите систему:
 
 ~~~
-# shutdown -r now
+$ ha core restart
 ~~~
 
 После этого, обнаруживаемые BT/BLE девайсы будут фиксироваться в файле `/usr/share/hassio/homeassistant/known_devices.yaml`
+
+После того, как все необходимые устройства будут найдены, рекомендуется отключить сканирование эфира, установив `track_new_devices: false` для компонентов bluetooth_tracker и bluetooth_le_tracker. Для удобства дальнейшей работы также можно почистить файл `known_devices.yaml` от ненужных устройств.
+
+## Подключение в качестве трекера часов Xiaomi Watch S1 Pro
+
+> **⚠**
+>
+> Нерабочий метод, т.к. по всей видимости, часы не отправляют advertise пакеты с mac-адресом, в режиме коннекта. Таким образом отследить их наличие без привязки к Raspberry Pi - невозможно.
+
+1. Откройте меню часов `Настройки` -> `Система` -> `Подключить новый телефон`;
+2. В открывшемся диалоге нажмите `Ok`;
+3. Наберите в консоле Raspberry Pi команду поиска BT устройств:
+
+~~~
+$ bluetoothctl devices
+~~~
+
+4. В списке устройств найдите строку вида:
+
+~~~
+Device XX:XX:XX:XX:XX:XX Xiaomi Watch S1 Pro XXXX
+~~~
+
+Здесь, XX:XX:XX:XX:XX:XX - MAC-адрес устройства, он понадобится нам в дальнейшем; XXXX - последние 4 символа MAC-адреса который отображается в приложении Mi Fitness. Последний не соответствует реальному MAC-адресу устройства и не светится в эфире. Что это за адрес - непонятно. Однако, если сделать запрос
+
+~~~
+$ bluetoothctl info XX:XX:XX:XX:XX:XX
+~~~
+
+Можно выяснить, что в поле `ServiceData Value:` последние 6 байт из 11 - это и есть MAC-адрес, отображаемый в приложении. Только байты идут в обратном порядке.
+
+## Подключение в качестве трекера мобильного телефона Android
+
+1. Установите компонент ble_monitor:
+
+~~~
+$ git clone --depth 1 https://github.com/custom-components/ble_monitor.git
+# # mkdir /usr/share/hassio/homeassistant/custom_components/
+# cp -r ./ble_monitor/custom_components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/ble_monitor/
+# chmod -R 755 /usr/share/hassio/homeassistant/custom_components/
+~~~
+
+2. Добавьте в `configuration.yaml` конфигурацию компонента (XX:XX:XX:XX:XX:XX - mac-адрес BLE модуля телефона):
+
+~~~
+# tee -a /usr/share/hassio/homeassistant/configuration.yaml << END
+ble_monitor:
+  discovery: False
+  bt_auto_restart: True
+  active_scan: True
+  devices:
+    - mac: 'XX:XX:XX:XX:XX:XX'
+      name: 'Beacon_Name'
+      track_device: True
+      tracker_scan_interval: 5
+      consider_home: 15
+END
+~~~
+
+3. Откройте приложение Home Assistant на телефоне;
+4. Выберите `Главное меню` -> `Настройки` -> `кМобильное приложение` -> `Передатчик BLE` -> `Включить датчик`;
+5. Теперь телефон будет работать как метка iBeacon.
 
 ## Разные заметки
 
@@ -193,6 +264,12 @@ END
 scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST}
 ~~~
 
+### Мониторинг добавляемых в known_devices.yaml устройств в реальном времени
+
+~~~
+$ tail -f /usr/share/hassio/homeassistant/known_devices.yaml
+~~~
+
 ## Используемые ссылки
 
 - https://forums.raspberrypi.com/viewtopic.php?t=228236
@@ -202,9 +279,11 @@ scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST
 - https://dzen.ru/a/ZYIM3UgUSzG68jmd
 - https://www.tim-kleyersburg.de/articles/home-assistant-with-docker-2023/
 
-### Ссылки, используемые для исправления компонента `bluetooth_tracker`
+### Ссылки, используемые для исправления компонента bluetooth_tracker
 
 - https://www.home-assistant.io/integrations/bluetooth_tracker/
 - https://github.com/home-assistant/core/issues/94273
 - https://github.com/home-assistant/core/pull/108513
 - https://github.com/xz-dev/core/tree/fix/bluetooth_tracker
+- https://community.home-assistant.io/t/cant-override-a-core-integration/328151
+- https://developers.home-assistant.io/docs/creating_integration_manifest/
