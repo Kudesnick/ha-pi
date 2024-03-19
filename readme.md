@@ -160,9 +160,8 @@ apt install mc -y
 
 ~~~
 $ git clone --branch fix/bluetooth_tracker --depth 1 https://github.com/xz-dev/core.git
-# mkdir /usr/share/hassio/homeassistant/custom_components/
+# mkdir -p /usr/share/hassio/homeassistant/custom_components/
 # cp -r ./core/homeassistant/components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/
-# chmod -R 755 /usr/share/hassio/homeassistant/custom_components/
 # sed -i 's/"name".*/&\n  "version": "1.0.0",/' /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/manifest.json
 # sed -i 's/"codeowners".*/&\n  "dependencies": ["bluetooth_adapters"],/' /usr/share/hassio/homeassistant/custom_components/bluetooth_tracker/manifest.json
 $ rm -fr ./core/
@@ -228,9 +227,9 @@ $ bluetoothctl info XX:XX:XX:XX:XX:XX
 
 ~~~
 $ git clone --depth 1 https://github.com/custom-components/ble_monitor.git
-# # mkdir /usr/share/hassio/homeassistant/custom_components/
-# cp -r ./ble_monitor/custom_components/bluetooth_tracker/ /usr/share/hassio/homeassistant/custom_components/ble_monitor/
-# chmod -R 755 /usr/share/hassio/homeassistant/custom_components/
+# mkdir -p /usr/share/hassio/homeassistant/custom_components/
+# cp -r ./ble_monitor/custom_components/ble_monitor/ /usr/share/hassio/homeassistant/custom_components/ble_monitor/
+$ rm -fr ./ble_monitor/
 ~~~
 
 2. Добавьте в `configuration.yaml` конфигурацию компонента (XX:XX:XX:XX:XX:XX - mac-адрес BLE модуля телефона):
@@ -250,9 +249,53 @@ ble_monitor:
 END
 ~~~
 
+> **ⓘ**
+>
+> Для iBeacon лучше использовать не mac-адрес, а идентификатор `uuid`, т.к. в общем случае, mac-адрес BLE устройства не обязан быть статическим.
+
 3. Откройте приложение Home Assistant на телефоне;
 4. Выберите `Главное меню` -> `Настройки` -> `кМобильное приложение` -> `Передатчик BLE` -> `Включить датчик`;
 5. Теперь телефон будет работать как метка iBeacon.
+
+### Пример автоматизация включения и выключения света по BLE метке
+
+~~~
+alias: torch switch
+description: Включает торшер, когда телефон входит в зону BLE и выключает, когда выходит
+trigger:
+  - platform: state
+    entity_id: device_tracker.ble_tracker_CrazyBeacon_UUID
+    to:
+      - home
+      - not_home
+condition: []
+action:
+  - service: light.turn_{{ 'on' if is_state(trigger.entity_id, 'home') else 'off' }}
+    target:
+      entity_id: light.torch
+    data: {}
+mode: single
+~~~
+
+## Подключение чайника Redmond SkyKettle RK-G212S
+
+1. Установите компонент skykettle
+
+~~~
+$ git clone --depth 1 https://github.com/ClusterM/skykettle-ha.git
+# mkdir -p /usr/share/hassio/homeassistant/custom_components/
+# cp -r ./skykettle-ha/custom_components/skykettle/ /usr/share/hassio/homeassistant/custom_components/skykettle/
+$ rm -fr ./skykettle-ha/
+~~~
+
+2. Перезапустите Home Assistant;
+3. Выберите в меню `Настройки` -> `Устройства и службы` -> `Добавить интеграцию`;
+4. Выберите из списка интеграцию `SkyKettle`;
+5. В открывшемся диалоге выберите ваш чайник и нажмите кнопку `Выбрать`, откроется диалог сопряжения;
+6. Переведите чайник в режим привязки, нажав кнопку питания на 10 секунд (чайник пискнет и индикатор температуры перейдет в режим "бегущие огни");
+7. В диалоге сопряжения нажмите кнопку `Подтвердить`;
+8. В открывшемся диалоге отметьте галочку `Постоянное подключение` и уменьшите интервал опрома до 1 с;
+9. Выберите локацию, готово!
 
 ## Разные заметки
 
