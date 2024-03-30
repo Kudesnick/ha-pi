@@ -120,7 +120,7 @@ systemctl stop ModemManager
 # MACHINE=raspberrypi2 dpkg --force-confdef --force-confold -i /homeassistant-supervised.deb
 
 # Install smth packages
-apt install mc -y
+apt install mc tmux minicom -y
 ~~~
 
 Данный скрипт произведет преднастройку системы (увеличит файл подкачки, включит BT и пр.) и скачает пакеты, необходимые для установки Home Assistant.
@@ -297,7 +297,7 @@ $ rm -fr ./skykettle-ha/
 8. В открывшемся диалоге отметьте галочку `Постоянное подключение` и уменьшите интервал опрома до 1 с;
 9. Выберите локацию, готово!
 
-## Разные заметки
+## Заметки
 
 ### [Копирование файла по SSH](https://unix.stackexchange.com/questions/106480/how-to-copy-files-from-one-machine-to-another-using-ssh)
 
@@ -311,6 +311,14 @@ scp ${LOGIN}@${SERVER}:/usr/share/hassio/homeassistant/known_devices.yaml ${DEST
 
 ~~~
 $ tail -f /usr/share/hassio/homeassistant/known_devices.yaml
+~~~
+
+### Разрешить пользователю работать с UART
+
+~~~
+$ FIRST_USER_NAME=username
+# usermod -a -G dialout ${FIRST_USER_NAME}
+# usermod -a -G tty ${FIRST_USER_NAME}v
 ~~~
 
 ## Используемые ссылки
