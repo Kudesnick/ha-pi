@@ -107,6 +107,15 @@ sensor:
 12. Нажимаем `Install` -> `Manual download`.
 13. Ждем, пока LibreTiny поставит все зависимости и соберет прошивку.
 
+> **ⓘ**
+>
+> Возможно, понадобится расширить файл подкачки до 2 GB:
+> ~~~
+> # sed -i "s/CONF_SWAPSIZE.*$/CONF_SWAPSIZE=1024/" "/etc/dphys-swapfile"
+> ~~~
+
+14. После успешной сбоки откроедся диалог скачивания прошивки. Выбираем для скачивания файл с расширением `*.uf2`.
+
 ## Прошивка
 
 Прошиваем согласно [официальной инструкции](https://docs.libretiny.eu/docs/platform/realtek-ambz/#partition-layout)
@@ -115,4 +124,11 @@ sensor:
 
 ~~~
 $ pip install ltchiptool
+~~~
+
+2. Подключаем модуль WR2 к Raspberry Pi по следующей схеме из [официального гайда](https://docs.libretiny.eu/docs/platform/realtek-ambz/#flashing).
+3. Прошиваем устройство командой:
+
+~~~
+$ ltchiptool flash write ya1.uf2 -d /dev/serial0
 ~~~
