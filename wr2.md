@@ -116,9 +116,40 @@ sensor:
 
 14. После успешной сбоки откроедся диалог скачивания прошивки. Выбираем для скачивания файл с расширением `*.uf2`.
 
+## Сборка без Home Assistant
+
+Сборка через интерфейс Home Assistant нестабильна на слабом железе. Алтернативный вариант - сборка из консоли linux. Если сборка происходит на том же устройстве, на котором уже развернуть Home Assistant, то предварительно его рекомендуется остановить, дабы высвободить ресурсы ЦП и ОЗУ:
+
+~~~
+$ ha core stop
+~~~
+
+1. Загружаем репозиторий и устанавливаем зависимости:
+
+~~~
+$ git clone https://github.com/esphome/esphome
+$ cd esphome
+$ pip install argcomplete voluptuous colorama platformio
+~~~
+
+2. Создаем файл с конфигурацией из инструкции выше. Обратите внимание, что ссылка `!secret` не сработает, нужно явно прописать логин и пароль от сети Wi-Fi. Сохраняем файл под именем `ya1.yml`.
+3. Запускаем сборку:
+
+~~~
+$ python -m esphome compile ya1.yml
+~~~
+
+4. По окончании сборки забираем прошивку по пути `./.esphome/build/ya1/.pioenv/ya1/firmware.uf2`:
+
+~~~
+$ cp ./.esphome/build/ya1/.pioenv/ya1/firmware.uf2 ya1.uf2
+~~~
+
 ## Прошивка
 
-Прошиваем согласно [официальной инструкции](https://docs.libretiny.eu/docs/platform/realtek-ambz/#partition-layout)
+Прошиваем согласно [официальной инструкции](https://docs.libretiny.eu/docs/platform/realtek-ambz/#partition-layout).
+
+Отладочный UART, через который производится прошивка, не выведен на гребенку с контактами. Он представляет собой две контрольные точки, расположенные на нижней стороне платы. Точка, которая ближе к гребенке контактов - TX2. Та, что выше - RX2.
 
 1. Устанавливаем утилиту для прошивки:
 
@@ -126,9 +157,20 @@ sensor:
 $ pip install ltchiptool
 ~~~
 
-2. Подключаем модуль WR2 к Raspberry Pi по следующей схеме из [официального гайда](https://docs.libretiny.eu/docs/platform/realtek-ambz/#flashing).
+2. Подключаем модуль WR2 к Raspberry Pi по следующей схеме из [официального гайда](https://docs.libretiny.eu/docs/platform/realtek-ambz/#flashing). Обратите внимание, что для входа в режим прошивки необходимо, чтобы пин PA30(TX2) был подтянут к земле на момент снятия сигнала низкого уровня с линии RESET.
+
+| пин RTL8710BN | сигнал WR2 | пин Raspberry | GPIO number    |
+|---------------|------------|---------------|----------------|
+| RESET         | CEN        | 7             | GPIO04         |
+| PA29          | RX2        | 8             | GPIO14 UART TX |
+| PA30          | TX2        | 10            | GPIO15 UART RX |
+
 3. Прошиваем устройство командой:
 
 ~~~
+$ gpioset gpiochip0  4=0
+$ gpioset gpiochip0 15=0
+$ gpioset gpiochip0  4=1
+$ gpioget gpiochip0 15
 $ ltchiptool flash write ya1.uf2 -d /dev/serial0
 ~~~
