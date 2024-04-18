@@ -1,7 +1,9 @@
 # Прошивка розетки Яндекса
 
 Розетка яндекса основана на модуле [WR2](https://developer.tuya.com/en/docs/iot/wifiwr2module?id=K9605tko0juc3), на чипе RTL8710BN.
-Для прошивки данного чипа используется проект https://docs.libretiny.eu/. Начальные сведения о процессе обновления получены [здесь](https://kazus.ru/forums/showthread.php?t=121126).
+Для прошивки данного чипа используется проект https://docs.libretiny.eu/. Начальные сведения о процессе обновления получены [здесь](https://kazus.ru/forums/showthread.php?t=121126). Отсюда же позаимствована принципиальная схема устройства:
+
+![scheme](ya-scheme.jpg)
 
 ## Подготовка инструментов и сборка прошивки
 
@@ -30,19 +32,33 @@ wifi_password: "wifi_password"
 ~~~
 esphome:
   name: ya1
-  friendly_name: ya1
 
 rtl87xx:
   board: wr2
   framework:
-    version: latest
+    version: 0.0.0
+    source: https://github.com/kudesnick/libretiny
 
 logger:
   hardware_uart: "UART2"
+  level: ERROR
+
 api:
-  password: ""
+  encryption:
+    key: !secret api_key
+  port: 6053
+
 ota:
-  password: ""
+  password: !secret ota_password
+  port: 8710
+
+web_server:
+  version: 2
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+
+captive_portal:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -51,8 +67,7 @@ wifi:
     password: "WR2-RTL8710BN"
     ap_timeout: 5min
   fast_connect: on
-captive_portal:
-web_server:
+  power_save_mode: none
 
 switch:
   - platform: gpio
@@ -107,6 +122,11 @@ sensor:
     change_mode_every: 4
 ~~~
 
+> **⚠**
+>
+> Обратите внимание на то, что используется кастомный репозиторий фреймворка libretiny. Это связано с некорректной настройкой GPIO. Если использовать официальный репозиторий, то прошивка не будет работать, а будет всё время перезагружаться с сообщением `W [      0.102] CHANGE interrupts not supported`.
+> Это связано с [ошибкой](https://github.com/libretiny-eu/libretiny/issues/155), которую еще не поправили.
+
 11. Сохраняем.
 12. Нажимаем `Install` -> `Manual download`.
 13. Ждем, пока LibreTiny поставит все зависимости и соберет прошивку.
@@ -149,6 +169,40 @@ $ python -m esphome compile ya1.yml
 $ cp ./.esphome/build/ya1/.pioenv/ya1/firmware.uf2 ya1.uf2
 ~~~
 
+Если сборка происходила на сторонней машине, то можем сразу скопировать прошивку на устройство по ssh:
+
+~~~
+$ scp ./.esphome/build/ya1/.pioenv/ya1/firmware.uf2 ${LOGIN}@${SERVER}:~/ya1.uf2
+~~~
+
+## Подготовка устройства для прошивки
+
+1. Вскрываем устройство, отщелкнув защелки по углам корпуса (две на каждый угол).
+2. Отпаиваем плату, которая держится на 6 "иголках".
+3. Напаиваем разъем программирования:
+
+![connector-top-side](ya01.jpg)
+
+![connector-bottom-side](ya02.jpg)
+
+4. Делаем пропилы в половинках корпуса под разъем:
+
+![corpus-a](ya03.jpg)
+
+![corpus-b](ya04.jpg)
+
+5. Запаиваем плату наместо.
+6. Собираем розетку:
+
+![asm](ya05.jpg)
+
+Распиновка разъема на картинке слева направо: TX(PA30); RX(PA29); CEN; GND; +3.3v.
+
+> **⚠ ВНИМАНИЕ! ВЫСОКОЕ НАПРЯЖЕНИЕ! ⚠**
+>
+> Не подключайтесь к разъему, когда розетка воткнута в сеть 220в!
+> Розетка имеет бестрансформаторный источник питания. Прикосновение к контактам разъема **⚠ ОПАСНО ДЛЯ ЖИЗНИ! ⚠** Также отсутствие гальванической развязки может привести к выходу из строя оборудования, подключенного к разъему.
+
 ## Прошивка
 
 Прошиваем согласно [официальной инструкции](https://docs.libretiny.eu/docs/platform/realtek-ambz/#partition-layout).
@@ -169,12 +223,14 @@ $ pip install ltchiptool
 | PA29          | RX2        | 8             | GPIO14 UART TX |
 | PA30          | TX2        | 10            | GPIO15 UART RX |
 
-3. Прошиваем устройство командой:
+3. Прошиваем устройство:
 
 ~~~
-$ gpioset gpiochip0  4=0
-$ gpioset gpiochip0 15=0
-$ gpioset gpiochip0  4=1
-$ gpioget gpiochip0 15
 $ ltchiptool flash write ya1.uf2 -d /dev/serial0
+~~~
+
+4. В случае необходимости, смотрим логи загрузки:
+
+~~~
+$ minicom -b 115200 -D /dev/serial0 -o
 ~~~
