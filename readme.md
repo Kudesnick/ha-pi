@@ -321,6 +321,18 @@ $ FIRST_USER_NAME=username
 # usermod -a -G tty ${FIRST_USER_NAME}v
 ~~~
 
+### Посмотреть, кто занимает порт
+
+~~~
+# netstat -tulpn | grep 1883
+~~~
+
+### Информация о дисках (свободное пространство)
+
+~~~
+# df -h
+~~~
+
 ## Используемые ссылки
 
 - https://forums.raspberrypi.com/viewtopic.php?t=228236
