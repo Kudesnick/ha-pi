@@ -7,7 +7,7 @@
 ~~~
 $ git clone --depth=1 --branch=main https://github.com/armbian/build
 $ cd ./build
-$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=yes RELEASE=bookworm
+$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=yes RELEASE=bookworm ROOTFS_TYPE=f2fs
 # очень долго ждем, затем проверяем результат
 $ ls output/images/ -sh
 total 1.3G
@@ -32,34 +32,22 @@ total 1.1G
 
 Конечно, без chroot не обойтись. Для этого в системе Armbian Build есть файлик `userpatches/customize-image.sh`, но эксперименты проще проводить на реальном железе, отлаживаясь на каждой строчке. В данный файл мы запишем лишь то, что нам нужно для запуска USB-сонсоли, чтобы не шаманить с продключением UART-USB переходников. Хотя, для глубокой диагностики UART не заменим, т.к. сообщения загрузчика и старта ядра мы в USB-констли не увидим.
 
-Добавим следующую функцию в этот файл, сразу после объявления глобальных переменных:
-
-~~~
-Usercode() {
-	# Не предлагаем сменить пароль root или создать нового пользователя
-	rm -f /etc/profile.d/armbian-check-first-login.sh
-    rm -f /etc/profile.d/armbian-check-first-login-reboot.sh
-
-	# Отключаем автообновления
-	rm -f /etc/cron.d/armbian-truncate-logs
-	rm -f /etc/cron.d/armbian-update
-	rm -f /etc/cron.d/sysstat
-	rm -f /etc/update-mot.d/41-armbian-config
-	rm -f /etc/update-mot.d/40-armbian-updates
-	rm -f /etc/cron.daily/apt-compat
-
-	# Включаем USB консоль
-	systemctl enable serial-getty@ttyGS0
-	echo g_serial > /etc/modules-load.d/g_serial.conf
-	sed -i 's/console=both$/console=ttyGS0/' /boot/armbianEnv.txt
-
-} # Usercode
-~~~
-
-Затем, в конце файла заменим вызов `Main "$@"` на `Usercode "$@"`.
+Заменим этот файл [пользовательским кодом](customize-image.sh).
 
 Пересоберем образ:
 
 ~~~
-$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no RELEASE=bookworm
+$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no RELEASE=bookworm ROOTFS_TYPE=f2fs OFFLINE_WORK=yes ROOT_FS_CREATE_ONLY=yes
+~~~
+
+## Заметки
+
+Смонтировать образ:
+
+~~~
+$ mkdir ${ROOTFS}
+# kpartx -v -a ${IMG}
+# mount -o rw /dev/mapper/loop0p1 ${ROOTFS}
+
+# umount ${ROOTFS}
 ~~~
