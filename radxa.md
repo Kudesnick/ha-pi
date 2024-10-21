@@ -37,7 +37,8 @@ total 1.1G
 Пересоберем образ:
 
 ~~~
-$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no RELEASE=bookworm ROOTFS_TYPE=f2fs OFFLINE_WORK=yes ROOT_FS_CREATE_ONLY=yes
+# apt install nilfs-tools
+$ ./compile.sh BOARD=radxa-zero BRANCH=current BUILD_DESKTOP=no BUILD_MINIMAL=yes KERNEL_CONFIGURE=no RELEASE=bookworm ROOTFS_TYPE=nilfs2 OFFLINE_WORK=yes rootfs
 ~~~
 
 ## Заметки
